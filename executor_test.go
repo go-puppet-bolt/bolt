@@ -192,9 +192,9 @@ func TestRunStepKinds(t *testing.T) {
 	if err != nil || v != "val" || len(msgs) != 1 {
 		t.Fatalf("message ok: %v %v %v", v, msgs, err)
 	}
-	// resources => unsupported
-	if _, _, err := e.runStep(Step{Kind: StepResources}, scope); !errors.Is(err, ErrApplyUnsupported) {
-		t.Fatalf("resources err = %v", err)
+	// resources step with no targets => targets error
+	if _, _, err := e.runStep(Step{Kind: StepResources}, scope); err == nil {
+		t.Fatal("resources without targets should error")
 	}
 	// script with bad argument var
 	if _, _, err := e.runStep(Step{Kind: StepScript, Script: "/s", Targets: "n1", Arguments: []any{"$missing"}}, scope); err == nil {

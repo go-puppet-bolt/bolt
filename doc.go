@@ -17,32 +17,40 @@
 //   - Plans: YAML plans (plan.yaml — parameters and an ordered list of task /
 //     command / script / eval / plan / resources / message steps, targets and a
 //     return expression), parsed and executed by a step runner ([YAMLPlan],
-//     [Step], [Executor.RunYAMLPlan]).
-//   - A transport abstraction ([Transport]) with a host-local transport
-//     ([LocalTransport]) driven through an injectable [CommandRunner] seam so it
-//     runs deterministically in tests without spawning real processes.
+//     [Step], [Executor.RunYAMLPlan]); and Puppet-language (.pp) plans, run
+//     through github.com/go-puppet/puppet with the run_task / run_command /
+//     run_script / get_targets / apply plan functions dispatched to real
+//     targets ([Executor.RunPuppetPlan]).
+//   - Transports ([Transport]): a host-local transport ([LocalTransport]) driven
+//     through an injectable [CommandRunner] seam, and a full SSH transport
+//     ([SSHTransport], pure-Go over golang.org/x/crypto/ssh) that honours the
+//     target's config.ssh (user, port, key/password auth, host-key-check,
+//     run-as/sudo, tty, tmpdir) and uploads-then-runs scripts and tasks.
+//   - apply blocks and the YAML `resources` step: the manifest is compiled to a
+//     catalog via github.com/go-puppet/puppet and an apply [ResultSet] is
+//     produced ([Executor.ApplyCatalog]).
 //   - An executor that runs a command, script or task across a set of targets,
 //     collecting a per-target [Result] into a [ResultSet].
 //
-// # Scope and deferrals (v1)
+// # Scope and boundaries
 //
-// The following are deliberately deferred and documented rather than silently
-// capped:
+// The following are honestly bounded rather than silently capped:
 //
-//   - SSH and WinRM transports. Only the host-local transport ships; the
-//     [Transport] interface is the extension point for remote transports.
-//   - Puppet-language (.pp) plans. Running a `plan name(...) { run_task(...) }`
-//     manifest needs a Bolt-aware evaluator (a `plan` keyword and the
-//     run_task / run_command / apply plan functions), which the pure-Go
-//     github.com/go-puppet/puppet catalog compiler does not provide; only YAML
-//     plans run here.
-//   - apply blocks / the `resources` plan step. Parsed and represented, but
-//     applying a resource catalog to a target is not implemented; a resources
-//     step returns [ErrApplyUnsupported].
+//   - WinRM transport ([WinRMTransport]): a documented stub. Every method
+//     returns [ErrWinRMUnsupported]. WinRM's WS-Management (SOAP) protocol and
+//     Negotiate/NTLM auth are a substantial, separately-testable undertaking;
+//     until a pure-Go WS-Man client lands, prefer the ssh transport on Windows
+//     (OpenSSH-for-Windows is fully supported by [SSHTransport]).
+//   - apply execution: [Executor.ApplyCatalog] compiles the catalog and reports
+//     what would be enforced (resource references and count) per target. It does
+//     not remotely enforce resources — real enforcement needs a Puppet agent on
+//     the target (Bolt's apply_prep model), which is out of scope for the
+//     agentless core.
 //   - PuppetDB and other plugin resolvers (`_plugin` inventory references).
 //
 // Everything here is pure Go with no cgo, so it cross-compiles to and runs on
-// every 64-bit Go target and links into a static binary by default. The only
-// non-stdlib dependency is github.com/go-ruby-yaml/yaml, the fleet's pure-Go
-// YAML loader, used to parse inventory and plan documents.
+// every 64-bit Go target and links into a static binary by default. Non-stdlib
+// dependencies are all pure Go: github.com/go-ruby-yaml/yaml (inventory/plan
+// YAML), golang.org/x/crypto/ssh (the ssh transport) and
+// github.com/go-puppet/puppet (the .pp plan evaluator and catalog compiler).
 package bolt

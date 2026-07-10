@@ -5,14 +5,9 @@
 package bolt
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 )
-
-// ErrApplyUnsupported is returned by the plan runner for a `resources` step:
-// applying a resource catalog to a target is deferred in v1.
-var ErrApplyUnsupported = errors.New("bolt: apply / resources steps are not supported in v1")
 
 // Executor runs actions on targets through a [Transport] and executes YAML
 // plans. Inventory (optional) resolves plan target-specs into [Target]s;
@@ -163,8 +158,30 @@ func (e *Executor) runStep(step Step, scope map[string]any) (any, []string, erro
 	case StepPlan:
 		return e.runPlanStep(step, scope)
 	default: // StepResources
-		return nil, nil, ErrApplyUnsupported
+		return e.runResourcesStep(step, scope)
 	}
+}
+
+// runResourcesStep compiles the step's resource list into a catalog and applies
+// it to the step's targets (see [Executor.ApplyCatalog] for the boundary).
+func (e *Executor) runResourcesStep(step Step, scope map[string]any) (any, []string, error) {
+	targets, err := e.resolveTargets(step.Targets, scope)
+	if err != nil {
+		return nil, nil, err
+	}
+	name := step.Name
+	if name == "" {
+		name = "apply"
+	}
+	cat, err := resourcesToCatalog(name, step.Resources)
+	if err != nil {
+		return nil, nil, err
+	}
+	rs := e.ApplyCatalog(targets, cat)
+	if !rs.Ok() {
+		return rs, nil, fmt.Errorf("apply failed on %d of %d targets", rs.ErrorSet().Count(), rs.Count())
+	}
+	return rs, nil, nil
 }
 
 // runTargetedStep resolves the step's targets, runs the action, and fails the

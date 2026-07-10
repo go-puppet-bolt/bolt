@@ -10,10 +10,13 @@ the agentless orchestrator. It parses Bolt inventory, tasks and plans, and runs
 them through a pluggable transport, with no Ruby runtime and no cgo, so it
 cross-compiles to every 64-bit Go target and links into a static binary.
 
-The only non-stdlib dependency is [`github.com/go-ruby-yaml/yaml`](https://github.com/go-ruby-yaml/yaml),
-the fleet's pure-Go YAML loader, used to parse inventory and plan documents.
+Non-stdlib dependencies are all pure Go:
+[`github.com/go-ruby-yaml/yaml`](https://github.com/go-ruby-yaml/yaml) (inventory
+/ plan YAML), [`golang.org/x/crypto/ssh`](https://pkg.go.dev/golang.org/x/crypto/ssh)
+(the SSH transport) and [`github.com/go-puppet/puppet`](https://github.com/go-puppet/puppet)
+(the `.pp` plan evaluator and catalog compiler).
 
-## What it does (v1)
+## What it does
 
 - **Inventory** (`inventory.yaml` v2) — targets, nested groups, per-group and
   per-target `config` / `facts` / `vars` / `features`, target `uri` / `name` /
@@ -26,21 +29,29 @@ the fleet's pure-Go YAML loader, used to parse inventory and plan documents.
   the declared parameter types (a pragmatic subset of the Puppet type system).
 - **YAML plans** (`plan.yaml`) — `parameters` and an ordered list of
   `task` / `command` / `script` / `eval` / `plan` / `resources` / `message`
-  steps, with `targets`, per-step `parameters`, and a `return` expression,
-  parsed and executed by a step runner.
+  steps, with `targets`, per-step `parameters`, and a `return` expression.
+- **Puppet-language (`.pp`) plans** — `plan name(...) { ... }` manifests run
+  through `github.com/go-puppet/puppet`; the `run_task` / `run_command` /
+  `run_script` / `get_targets` / `apply` plan functions dispatch through this
+  executor's transports and inventory to real targets (`RunPuppetPlan`).
 - **Transports** — a `Transport` interface with a host-local transport
-  (`LocalTransport`) driven through an injectable `CommandRunner` seam.
+  (`LocalTransport`) and a full **SSH transport** (`SSHTransport`, pure-Go over
+  `golang.org/x/crypto/ssh`): key/password auth, `host-key-check`, `run-as`
+  (sudo), `tty`, and upload-then-run for scripts and tasks, honouring
+  `config.ssh`.
+- **`apply` blocks & `resources` steps** — the manifest is compiled to a catalog
+  via `go-puppet/puppet` and an apply `ResultSet` is produced (`ApplyCatalog`).
 - **Execution** — an `Executor` runs a command, script or task across a set of
   targets, collecting a per-target `Result` into a `ResultSet`.
 
-## Deferred (documented, not silently capped)
+## Boundaries (documented, not silently capped)
 
 | Area | Status |
 | --- | --- |
-| SSH / WinRM transports | **Deferred.** Only `LocalTransport` ships; `Transport` is the extension point. |
-| Puppet-language (`.pp`) plans | **Deferred.** Needs a Bolt-aware evaluator (`plan` keyword + `run_task`/`apply` plan functions); the pure-Go `go-puppet/puppet` catalog compiler does not provide it. Only YAML plans run. |
-| `apply` blocks / `resources` steps | **Deferred.** Parsed and represented; a `resources` step returns `ErrApplyUnsupported`. |
-| PuppetDB / `_plugin` inventory references | **Deferred.** |
+| SSH transport | **Done.** Pure-Go over `x/crypto/ssh`; tested end-to-end against an in-process SSH server (auth, exec, upload, run-as, exit codes). |
+| WinRM transport | **Documented stub** (`WinRMTransport`). Every method returns `ErrWinRMUnsupported`. WinRM's WS-Management (SOAP) protocol + Negotiate/NTLM auth are a substantial, separately-testable undertaking; use the SSH transport on Windows (OpenSSH-for-Windows). |
+| `apply` execution | **Compile + report.** `ApplyCatalog` compiles the catalog and reports the resources it would enforce per target; it does not remotely enforce resources (that needs a Puppet agent — Bolt's `apply_prep` model — out of scope for the agentless core). |
+| PuppetDB / `_plugin` inventory references | Not implemented. |
 | Full pcore type parser | Basic type checks only (String/Integer/Float/Numeric/Boolean/Array/Hash/Optional/Enum/Pattern/Variant/…). |
 
 ## Example
@@ -55,6 +66,24 @@ exec := &bolt.Executor{
 }
 rs := exec.RunCommand(targets, "uptime")
 fmt.Println(rs.Ok(), rs.Names())
+```
+
+Over SSH, running a Puppet-language plan:
+
+```go
+exec := &bolt.Executor{
+    Transport:  bolt.NewSSHTransport(),
+    Inventory:  inv,
+    TaskLoader: loadTask, // resolve a task by name
+}
+src := `plan deploy(TargetSpec $nodes) {
+  run_command('systemctl stop app', $nodes)
+  run_task('app::deploy', $nodes, {'version' => '1.2.3'})
+  return apply($nodes) {
+    service { 'app': ensure => running, enable => true }
+  }
+}`
+res, err := exec.RunPuppetPlan(src, "deploy", map[string]any{"nodes": "web"})
 ```
 
 ## Tests & coverage
