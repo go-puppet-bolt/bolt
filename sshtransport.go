@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -289,7 +290,7 @@ func (s *SSHTransport) RunScript(target *Target, scriptPath string, args []strin
 			Err: fmt.Errorf("ssh: reading script %q: %w", scriptPath, err)}
 	}
 	return s.withClient(target, "script", scriptPath, func(client *ssh.Client, c sshConfig) Result {
-		remote := remoteTempPath(c, path.Base(scriptPath))
+		remote := remoteTempPath(c, filepath.Base(scriptPath))
 		if err := uploadBytes(client, c, body, remote, true); err != nil {
 			return Result{Target: target.Name, Action: "script", Object: scriptPath, Err: err}
 		}
@@ -320,7 +321,7 @@ func (s *SSHTransport) RunTask(target *Target, task *Task, params map[string]any
 			Err: fmt.Errorf("task %q: %w", task.Name, err)}
 	}
 	return s.withClient(target, "task", task.Name, func(client *ssh.Client, c sshConfig) Result {
-		remote := remoteTempPath(c, path.Base(task.File))
+		remote := remoteTempPath(c, filepath.Base(task.File))
 		if err := uploadBytes(client, c, body, remote, true); err != nil {
 			return Result{Target: target.Name, Action: "task", Object: task.Name, Err: err}
 		}
