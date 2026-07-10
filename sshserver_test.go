@@ -140,17 +140,11 @@ func (s *testSSHServer) handleSession(ch ssh.Channel, reqs <-chan *ssh.Request) 
 			var payload struct{ Command string }
 			_ = ssh.Unmarshal(req.Payload, &payload)
 			_ = req.Reply(true, nil)
-			var (
-				data []byte
-				read bool
-			)
-			stdin := func() string {
-				if !read {
-					data, _ = io.ReadAll(ch)
-					read = true
-				}
-				return string(data)
-			}
+			// Always drain stdin fully before running and closing the channel;
+			// otherwise closing early races the client's stdin-copy goroutine and
+			// surfaces as a run error.
+			data, _ := io.ReadAll(ch)
+			stdin := func() string { return string(data) }
 			out, errOut, code := s.exec(payload.Command, stdin)
 			_, _ = io.WriteString(ch, out)
 			_, _ = io.WriteString(ch.Stderr(), errOut)
