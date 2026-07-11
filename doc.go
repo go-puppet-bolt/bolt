@@ -22,10 +22,13 @@
 //     run_script / get_targets / apply plan functions dispatched to real
 //     targets ([Executor.RunPuppetPlan]).
 //   - Transports ([Transport]): a host-local transport ([LocalTransport]) driven
-//     through an injectable [CommandRunner] seam, and a full SSH transport
+//     through an injectable [CommandRunner] seam; a full SSH transport
 //     ([SSHTransport], pure-Go over golang.org/x/crypto/ssh) that honours the
 //     target's config.ssh (user, port, key/password auth, host-key-check,
-//     run-as/sudo, tty, tmpdir) and uploads-then-runs scripts and tasks.
+//     run-as/sudo, tty, tmpdir) and uploads-then-runs scripts and tasks; and a
+//     full WinRM transport ([WinRMTransport], pure-Go WS-Management/MS-WSMV over
+//     net/http with basic, NTLM-negotiate and TLS-client-certificate auth) that
+//     honours config.winrm and uploads-then-runs scripts and tasks on Windows.
 //   - apply blocks and the YAML `resources` step: the manifest is compiled to a
 //     catalog via github.com/go-puppet/puppet and an apply [ResultSet] is
 //     produced ([Executor.ApplyCatalog]).
@@ -36,21 +39,20 @@
 //
 // The following are honestly bounded rather than silently capped:
 //
-//   - WinRM transport ([WinRMTransport]): a documented stub. Every method
-//     returns [ErrWinRMUnsupported]. WinRM's WS-Management (SOAP) protocol and
-//     Negotiate/NTLM auth are a substantial, separately-testable undertaking;
-//     until a pure-Go WS-Man client lands, prefer the ssh transport on Windows
-//     (OpenSSH-for-Windows is fully supported by [SSHTransport]).
 //   - apply execution: [Executor.ApplyCatalog] compiles the catalog and reports
 //     what would be enforced (resource references and count) per target. It does
 //     not remotely enforce resources — real enforcement needs a Puppet agent on
 //     the target (Bolt's apply_prep model), which is out of scope for the
 //     agentless core.
+//   - WinRM Kerberos/CredSSP authentication: only basic, NTLM-negotiate and
+//     TLS-client-certificate auth are implemented (transport "basic",
+//     "negotiate" and "ssl"). Kerberos ("realm") is rejected with a clear error.
 //   - PuppetDB and other plugin resolvers (`_plugin` inventory references).
 //
 // Everything here is pure Go with no cgo, so it cross-compiles to and runs on
 // every 64-bit Go target and links into a static binary by default. Non-stdlib
 // dependencies are all pure Go: github.com/go-ruby-yaml/yaml (inventory/plan
-// YAML), golang.org/x/crypto/ssh (the ssh transport) and
+// YAML), golang.org/x/crypto/ssh (the ssh transport),
+// github.com/Azure/go-ntlmssp (WinRM NTLM negotiate) and
 // github.com/go-puppet/puppet (the .pp plan evaluator and catalog compiler).
 package bolt
