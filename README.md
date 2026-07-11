@@ -49,7 +49,7 @@ Non-stdlib dependencies are all pure Go:
 | Area | Status |
 | --- | --- |
 | SSH transport | **Done.** Pure-Go over `x/crypto/ssh`; tested end-to-end against an in-process SSH server (auth, exec, upload, run-as, exit codes). |
-| WinRM transport | **Documented stub** (`WinRMTransport`). Every method returns `ErrWinRMUnsupported`. WinRM's WS-Management (SOAP) protocol + Negotiate/NTLM auth are a substantial, separately-testable undertaking; use the SSH transport on Windows (OpenSSH-for-Windows). |
+| WinRM transport | **Done.** Pure-Go WS-Management / MS-WSMV (SOAP over `net/http`) with `basic`, `negotiate` (NTLM via `github.com/Azure/go-ntlmssp`) and `ssl` (TLS client certificate) auth; RunCommand / RunScript / RunTask (stdin / environment / powershell / both input methods) / Upload, honouring `config.winrm`. Tested end-to-end against an in-process WS-Man server (shell create/command/send/receive/signal/delete, auth, faults, non-zero exit). Kerberos/CredSSP not implemented. |
 | `apply` execution | **Compile + report.** `ApplyCatalog` compiles the catalog and reports the resources it would enforce per target; it does not remotely enforce resources (that needs a Puppet agent — Bolt's `apply_prep` model — out of scope for the agentless core). |
 | PuppetDB / `_plugin` inventory references | Not implemented. |
 | Full pcore type parser | Basic type checks only (String/Integer/Float/Numeric/Boolean/Array/Hash/Optional/Enum/Pattern/Variant/…). |

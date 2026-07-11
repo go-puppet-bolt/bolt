@@ -14,8 +14,9 @@ import (
 	"strings"
 )
 
-// Transport runs actions on a target. v1 ships only [LocalTransport]; SSH and
-// WinRM transports are deferred, and this interface is their extension point.
+// Transport runs actions on a target. It is implemented by [LocalTransport],
+// [SSHTransport] and [WinRMTransport]; the interface is the extension point for
+// any further transport.
 type Transport interface {
 	// RunCommand runs a shell command on the target.
 	RunCommand(target *Target, command string) Result
