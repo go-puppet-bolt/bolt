@@ -13,7 +13,8 @@ cross-compiles to every 64-bit Go target and links into a static binary.
 Non-stdlib dependencies are all pure Go:
 [`github.com/go-ruby-yaml/yaml`](https://github.com/go-ruby-yaml/yaml) (inventory
 / plan YAML), [`golang.org/x/crypto/ssh`](https://pkg.go.dev/golang.org/x/crypto/ssh)
-(the SSH transport) and [`github.com/go-puppet/puppet`](https://github.com/go-puppet/puppet)
+(the SSH transport), [`github.com/Azure/go-ntlmssp`](https://github.com/Azure/go-ntlmssp)
+(WinRM NTLM negotiate) and [`github.com/go-puppet/puppet`](https://github.com/go-puppet/puppet)
 (the `.pp` plan evaluator and catalog compiler).
 
 ## What it does
