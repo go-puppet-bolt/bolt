@@ -5,7 +5,7 @@ go 1.26.4
 require (
 	github.com/Azure/go-ntlmssp v0.1.1
 	github.com/go-puppet/puppet v0.0.0-20260710103827-cd6a37fab2cc
-	github.com/go-ruby-yaml/yaml v0.0.0-20260709090301-cbc7bd99c0ed
+	github.com/go-ruby-yaml/yaml v0.0.0-20260804155707-9c1d94ea2290
 	golang.org/x/crypto v0.54.0
 )
 
