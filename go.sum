@@ -12,6 +12,8 @@ github.com/go-puppet/puppet v0.0.0-20260710103827-cd6a37fab2cc h1:ohUXH6SV0FW10+
 github.com/go-puppet/puppet v0.0.0-20260710103827-cd6a37fab2cc/go.mod h1:Kp6rxA/TsanKrp24Rlb7YfK+PH/xkxXeQvjIKPHirBk=
 github.com/go-ruby-yaml/yaml v0.0.0-20260709090301-cbc7bd99c0ed h1:VQDvAYCXqfDPo+7or3YK7C/f/0m0kjAAO58jYtrrmqo=
 github.com/go-ruby-yaml/yaml v0.0.0-20260709090301-cbc7bd99c0ed/go.mod h1:HtbQgnZpSTJBAhPg1jOKgHycZl3tXgf9ZdOu4dnHWjQ=
+github.com/go-ruby-yaml/yaml v0.0.0-20260804155707-9c1d94ea2290 h1:sACndmsnAEQA24MuxXAjrIJGrZGTZEBU+c3pn9qAwWs=
+github.com/go-ruby-yaml/yaml v0.0.0-20260804155707-9c1d94ea2290/go.mod h1:HtbQgnZpSTJBAhPg1jOKgHycZl3tXgf9ZdOu4dnHWjQ=
 golang.org/x/crypto v0.54.0 h1:YLIA59K4fiNzHzjnZt2tUJQjQtUWfWbeHBqKtk3eScw=
 golang.org/x/crypto v0.54.0/go.mod h1:KWL8ny2AZdGR2cWmzeHrp2azQPGogOv+HeQaVEXC2dk=
 golang.org/x/sys v0.47.0 h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=
