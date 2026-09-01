@@ -1,5 +1,7 @@
 github.com/Azure/go-ntlmssp v0.1.1 h1:l+FM/EEMb0U9QZE7mKNEDw5Mu3mFiaa2GKOoTSsNDPw=
 github.com/Azure/go-ntlmssp v0.1.1/go.mod h1:NYqdhxd/8aAct/s4qSYZEerdPuH1liG2/X9DiVTbhpk=
+github.com/go-augeas/augeas v0.0.0-20260710212525-99b7e90237b2 h1:LhN0Dnmu1QJepSA2VIVY70+8KmCnSWwDP3xAkKWGUts=
+github.com/go-augeas/augeas v0.0.0-20260710212525-99b7e90237b2/go.mod h1:syDsgdbvlbD/zjgs6nJktc2araTaN5DEL3a/OvPCrkM=
 github.com/go-facter/facter v0.0.0-20260708052836-752b1a3edee0 h1:1PUT8X4gKZsXEVdoMS//ceD4X2jiK9fEJinyU2iuIpI=
 github.com/go-facter/facter v0.0.0-20260708052836-752b1a3edee0/go.mod h1:ghuoOHWXdq5dE3GLPDiz3Uy0ORrvK+1hB7QC997ez2U=
 github.com/go-hiera/hiera v0.0.0-20260708051558-73bff6edd0e9 h1:SydVW8z9lhzfLFvLTsaUPoNmStmdp/09DmI7Vwxz9QE=
@@ -10,6 +12,8 @@ github.com/go-pcore/pcore v0.0.0-20260708052910-1416bf219e47 h1:pPEpa5r9lGvOEbiy
 github.com/go-pcore/pcore v0.0.0-20260708052910-1416bf219e47/go.mod h1:MgngaL59lB3D41kl/VWYfkem1sJDBbh3JXG/y/Lrnjo=
 github.com/go-puppet/puppet v0.0.0-20260710103827-cd6a37fab2cc h1:ohUXH6SV0FW10+CXPQvhazFn9ThzwCJFRaNrgwZQorY=
 github.com/go-puppet/puppet v0.0.0-20260710103827-cd6a37fab2cc/go.mod h1:Kp6rxA/TsanKrp24Rlb7YfK+PH/xkxXeQvjIKPHirBk=
+github.com/go-puppet/puppet v0.0.0-20260831064218-ab6e40079f54 h1:iBwebeHU3ZZdFRt3gWPKZP+dO0GbGsOFEhAeZh+/hz0=
+github.com/go-puppet/puppet v0.0.0-20260831064218-ab6e40079f54/go.mod h1:kDGYHlz0B4CdYTTNbdPHgSIbV+TJMp+90C6ZCzFkdjA=
 github.com/go-ruby-yaml/yaml v0.0.0-20260709090301-cbc7bd99c0ed h1:VQDvAYCXqfDPo+7or3YK7C/f/0m0kjAAO58jYtrrmqo=
 github.com/go-ruby-yaml/yaml v0.0.0-20260709090301-cbc7bd99c0ed/go.mod h1:HtbQgnZpSTJBAhPg1jOKgHycZl3tXgf9ZdOu4dnHWjQ=
 github.com/go-ruby-yaml/yaml v0.0.0-20260804155707-9c1d94ea2290 h1:sACndmsnAEQA24MuxXAjrIJGrZGTZEBU+c3pn9qAwWs=
