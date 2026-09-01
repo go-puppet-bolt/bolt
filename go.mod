@@ -6,7 +6,7 @@ require (
 	github.com/Azure/go-ntlmssp v0.1.1
 	github.com/go-puppet/puppet v0.0.0-20260710103827-cd6a37fab2cc
 	github.com/go-ruby-yaml/yaml v0.0.0-20260804155707-9c1d94ea2290
-	golang.org/x/crypto v0.54.0
+	golang.org/x/crypto v0.55.0
 )
 
 require (
