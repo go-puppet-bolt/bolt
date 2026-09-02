@@ -162,9 +162,46 @@ func (s *testSSHServer) mapPath(p string) string {
 	return filepath.Join(s.root, filepath.FromSlash(p))
 }
 
-// exec tokenises and interprets one command line.
+// exec interprets one command line, honouring ';' as a statement
+// separator (every statement runs regardless of the previous one's exit
+// code; the reported exit code is the last statement's) — the one piece
+// of real shell grammar the transports' own wrapping relies on (e.g.
+// `sh -c 'echo MARKER; <command>'` for success-marker detection).
 func (s *testSSHServer) exec(cmdline string, stdin func() string) (string, string, int) {
-	return s.run(tokenize(cmdline), stdin)
+	var stdout, stderr strings.Builder
+	code := 0
+	for _, stmt := range splitStatements(cmdline) {
+		stmt = strings.TrimSpace(stmt)
+		if stmt == "" {
+			continue
+		}
+		out, errOut, c := s.run(tokenize(stmt), stdin)
+		stdout.WriteString(out)
+		stderr.WriteString(errOut)
+		code = c
+	}
+	return stdout.String(), stderr.String(), code
+}
+
+// splitStatements splits s on top-level ';' (outside single quotes).
+func splitStatements(s string) []string {
+	var parts []string
+	var cur strings.Builder
+	inQuote := false
+	for _, r := range s {
+		switch {
+		case r == '\'':
+			inQuote = !inQuote
+			cur.WriteRune(r)
+		case r == ';' && !inQuote:
+			parts = append(parts, cur.String())
+			cur.Reset()
+		default:
+			cur.WriteRune(r)
+		}
+	}
+	parts = append(parts, cur.String())
+	return parts
 }
 
 // run interprets a tokenised command, honouring a single `> file` redirection.
@@ -287,9 +324,14 @@ func (s *testSSHServer) runProgram(argv []string, env map[string]string, stdin f
 	}
 }
 
-// tokenize splits a command line into words, honouring POSIX single-quoting and
-// backslash escaping outside quotes (the inverse of shellQuote). Adjacent
-// quoted and unquoted runs concatenate into one word.
+// tokenize splits a command line into words, honouring POSIX single- and
+// double-quoting and backslash escaping outside quotes (the inverse of
+// shellQuote). Adjacent quoted and unquoted runs concatenate into one
+// word — including the standard '"'"' idiom a quoter uses to embed a
+// literal single quote inside a single-quoted word (close the quote,
+// double-quote one literal ', reopen the quote), which callers wrapping
+// an already-quoted command (e.g. privilege-escalation wrapping) rely
+// on.
 func tokenize(s string) []string {
 	var toks []string
 	var cur strings.Builder
@@ -309,6 +351,14 @@ func tokenize(s string) []string {
 			inWord = true
 			i++
 			for i < len(s) && s[i] != '\'' {
+				cur.WriteByte(s[i])
+				i++
+			}
+			i++ // closing quote
+		case ch == '"':
+			inWord = true
+			i++
+			for i < len(s) && s[i] != '"' {
 				cur.WriteByte(s[i])
 				i++
 			}

@@ -20,6 +20,22 @@ import (
 	"testing"
 )
 
+// WS-Management / MS-WSMV action names and namespace this fake server
+// matches against. The real transport now lives in
+// github.com/go-remoteexec/transport, which has its own copy of these —
+// this file keeps its own so it stays a self-contained test double, not
+// dependent on production constants bolt no longer defines.
+const (
+	nsShell = "http://schemas.microsoft.com/wbem/wsman/1/windows/shell"
+
+	actionCreate  = "http://schemas.xmlsoap.org/ws/2004/09/transfer/Create"
+	actionDelete  = "http://schemas.xmlsoap.org/ws/2004/09/transfer/Delete"
+	actionCommand = nsShell + "/Command"
+	actionSend    = nsShell + "/Send"
+	actionReceive = nsShell + "/Receive"
+	actionSignal  = nsShell + "/Signal"
+)
+
 // fakeWSMan is an in-process WS-Management (MS-WSMV shell) server. It implements
 // the shell state machine — Create → Command → Send → Receive → Signal →
 // Delete — returning canned SOAP responses, so the WinRM transport is exercised

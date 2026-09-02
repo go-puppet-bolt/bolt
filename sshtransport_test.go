@@ -5,6 +5,7 @@
 package bolt
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -13,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"golang.org/x/crypto/ssh/knownhosts"
 )
@@ -102,7 +102,7 @@ func TestSSHAuthFailure(t *testing.T) {
 
 func TestSSHConnectError(t *testing.T) {
 	srv := pwServer(t)
-	tr := &SSHTransport{Dialer: func(string, string, time.Duration) (net.Conn, error) {
+	tr := &SSHTransport{Dialer: func(context.Context, string, string) (net.Conn, error) {
 		return nil, errors.New("no route")
 	}}
 	r := tr.RunCommand(sshTarget(srv, nil), "echo hi")
@@ -115,7 +115,7 @@ func TestSSHNoAuthConfigured(t *testing.T) {
 	srv := pwServer(t)
 	// A bare target (no inventory, no config) reaches the "no auth" branch.
 	r := NewSSHTransport().RunCommand(&Target{Name: "h", URI: srv.host}, "echo hi")
-	if r.Err == nil || !strings.Contains(r.Err.Error(), "no authentication") {
+	if r.Err == nil || !strings.Contains(r.Err.Error(), "authentication") {
 		t.Fatalf("want no-auth error, got %#v", r)
 	}
 }
@@ -124,7 +124,7 @@ func TestSSHParseKeyError(t *testing.T) {
 	srv := pwServer(t)
 	tgt := sshTarget(srv, map[string]any{"password": nil, "private-key": map[string]any{"key-data": "not a key"}})
 	r := NewSSHTransport().RunCommand(tgt, "echo hi")
-	if r.Err == nil || !strings.Contains(r.Err.Error(), "parsing private key") {
+	if r.Err == nil || !strings.Contains(r.Err.Error(), "loading private key") {
 		t.Fatalf("want parse error, got %#v", r)
 	}
 }
@@ -162,7 +162,7 @@ func TestSSHHostKeyCheckBadFile(t *testing.T) {
 	srv := pwServer(t)
 	tgt := sshTarget(srv, map[string]any{"host-key-check": true, "known-hosts": filepath.Join(t.TempDir(), "absent")})
 	r := NewSSHTransport().RunCommand(tgt, "echo hi")
-	if r.Err == nil || !strings.Contains(r.Err.Error(), "loading known-hosts") {
+	if r.Err == nil || !strings.Contains(r.Err.Error(), "reading known_hosts") {
 		t.Fatalf("want known-hosts load error, got %#v", r)
 	}
 }
@@ -193,7 +193,7 @@ func TestSSHRunScript(t *testing.T) {
 func TestSSHRunScriptReadError(t *testing.T) {
 	srv := pwServer(t)
 	r := NewSSHTransport().RunScript(sshTarget(srv, nil), filepath.Join(t.TempDir(), "absent.sh"), nil)
-	if r.Err == nil || !strings.Contains(r.Err.Error(), "reading script") {
+	if r.Err == nil || !strings.Contains(r.Err.Error(), "no such file") {
 		t.Fatalf("want read error, got %#v", r)
 	}
 }
@@ -211,7 +211,7 @@ func TestSSHRunScriptCatFail(t *testing.T) {
 	srv := pwServer(t)
 	script := writeFile(t, "failcat.sh", "#args\n")
 	r := NewSSHTransport().RunScript(sshTarget(srv, nil), script, nil)
-	if r.Err == nil || !strings.Contains(r.Err.Error(), "uploading") {
+	if r.Err == nil || !strings.Contains(r.Err.Error(), "put") {
 		t.Fatalf("want cat error, got %#v", r)
 	}
 }
@@ -290,7 +290,7 @@ func TestSSHRunTaskFileReadError(t *testing.T) {
 	srv := pwServer(t)
 	task := &Task{Name: "t", File: filepath.Join(t.TempDir(), "absent")}
 	r := NewSSHTransport().RunTask(sshTarget(srv, nil), task, nil)
-	if r.Err == nil || !strings.Contains(r.Err.Error(), "reading task file") {
+	if r.Err == nil || !strings.Contains(r.Err.Error(), "no such file") {
 		t.Fatalf("want read error, got %#v", r)
 	}
 }
@@ -310,7 +310,7 @@ func TestSSHRunTaskUploadError(t *testing.T) {
 	taskFile := writeFile(t, "failcat", "#emit {}\n")
 	task := &Task{Name: "t", File: taskFile}
 	r := NewSSHTransport().RunTask(sshTarget(srv, nil), task, nil)
-	if r.Err == nil || !strings.Contains(r.Err.Error(), "uploading") {
+	if r.Err == nil || !strings.Contains(r.Err.Error(), "put") {
 		t.Fatalf("want upload error, got %#v", r)
 	}
 }
@@ -411,7 +411,7 @@ func TestSSHTTY(t *testing.T) {
 func TestSSHNewSessionError(t *testing.T) {
 	srv := startTestSSHServer(t, func(s *testSSHServer) { s.password = "pw"; s.rejectSession = true })
 	r := NewSSHTransport().RunCommand(sshTarget(srv, nil), "echo hi")
-	if r.Err == nil || !strings.Contains(r.Err.Error(), "new session") {
+	if r.Err == nil || !strings.Contains(r.Err.Error(), "opening ssh session") {
 		t.Fatalf("want new-session error, got %#v", r)
 	}
 }
@@ -419,7 +419,7 @@ func TestSSHNewSessionError(t *testing.T) {
 func TestSSHExecRequestError(t *testing.T) {
 	srv := startTestSSHServer(t, func(s *testSSHServer) { s.password = "pw"; s.rejectExec = true })
 	r := NewSSHTransport().RunCommand(sshTarget(srv, nil), "echo hi")
-	if r.Err == nil || !strings.Contains(r.Err.Error(), "running command") {
+	if r.Err == nil || !strings.Contains(r.Err.Error(), "ssh exec") {
 		t.Fatalf("want run error, got %#v", r)
 	}
 }

@@ -5,20 +5,19 @@
 package bolt
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/knownhosts"
+	remoteexec "github.com/go-remoteexec/transport"
 )
 
 // SSHTransport runs actions on a target over SSH, mirroring Bolt's ssh
@@ -34,14 +33,15 @@ import (
 //     runs it, then removes it.
 //   - Upload copies a local file to a destination via a stdin-streamed write.
 //
-// It is pure Go (golang.org/x/crypto/ssh) and CGO-free, so it works on every
-// 64-bit Go target. Every code path is exercised in tests against an in-process
-// SSH server (see sshtransport_test.go), so no real host or network is needed.
+// The connection itself (dial, auth, host-key verification, exec/upload wire
+// protocol, sudo/su/doas escalation) is github.com/go-remoteexec/transport,
+// shared with go-ansible; this file only resolves Bolt's own config shape and
+// layers Bolt's task-input-method conventions on top.
 type SSHTransport struct {
 	// Dialer establishes the transport-level connection. It defaults to a
 	// net.Dialer honouring the target's connect-timeout. Tests inject a dialer
 	// that reaches an in-process server (and can force connect failures).
-	Dialer func(network, addr string, timeout time.Duration) (net.Conn, error)
+	Dialer func(ctx context.Context, network, addr string) (net.Conn, error)
 	// KnownHostsFile is consulted when a target enables host-key-check. Empty
 	// means host-key-check requires an explicit known-hosts path in config.
 	KnownHostsFile string
@@ -50,97 +50,100 @@ type SSHTransport struct {
 // NewSSHTransport returns an SSHTransport using a real TCP dialer.
 func NewSSHTransport() *SSHTransport { return &SSHTransport{} }
 
-// sshConfig is the resolved connection configuration for one target, derived
-// from its uri and effective config.ssh block.
-type sshConfig struct {
-	host           string
-	port           int
-	user           string
-	password       string
-	privateKey     []byte
-	passphrase     string
-	hostKeyCheck   bool
-	knownHostsFile string
-	runAs          string
-	sudoPassword   string
-	tty            bool
-	tmpdir         string
-	connectTimeout time.Duration
+// sshRunAs is the resolved run-as/escalation portion of a target's ssh
+// config — kept separate from [remoteexec.SSHConfig] because escalation
+// is a decorator ([remoteexec.Become]) applied over a connection, not a
+// dial-time setting.
+type sshRunAs struct {
+	user     string
+	password string
 }
 
-// resolveSSHConfig builds an sshConfig from a target's uri and config.ssh.
-func resolveSSHConfig(t *Target, knownHostsFallback string) (sshConfig, error) {
-	c := sshConfig{port: 22, user: "root", tmpdir: "/tmp", connectTimeout: 10 * time.Second}
-	c.host = hostFromURI(t.URI)
+// resolveSSHConfig builds a [remoteexec.SSHConfig] (plus any run-as
+// config) from a target's uri and effective config.ssh.
+func resolveSSHConfig(t *Target, knownHostsFallback string) (remoteexec.SSHConfig, sshRunAs, error) {
+	c := remoteexec.SSHConfig{
+		Port: 22, User: "root", TempDir: "/tmp", Timeout: 10 * time.Second,
+	}
+	var runAs sshRunAs
+
+	c.Host = hostFromURI(t.URI)
 	if u := userFromURI(t.URI); u != "" {
-		c.user = u
+		c.User = u
 	}
 	if p := portFromURI(t.URI); p != 0 {
-		c.port = p
+		c.Port = p
 	}
 	ssh, _ := asMap(effectiveConfig(t)["ssh"])
 	if ssh == nil {
-		if c.host == "" {
-			return c, fmt.Errorf("ssh: target %q has no host", t.Name)
+		if c.Host == "" {
+			return c, runAs, fmt.Errorf("ssh: target %q has no host", t.Name)
 		}
-		return c, nil
+		return c, runAs, nil
 	}
 	if v, ok := asString(ssh["host"]); ok && v != "" {
-		c.host = v
+		c.Host = v
 	}
 	if p, ok := asInt(ssh["port"]); ok {
-		c.port = p
+		c.Port = p
 	}
 	if v, ok := asString(ssh["user"]); ok && v != "" {
-		c.user = v
+		c.User = v
 	}
 	if v, ok := asString(ssh["password"]); ok {
-		c.password = v
+		c.Password = v
 	}
 	if v, ok := asString(ssh["private-key"]); ok && v != "" {
 		key, err := os.ReadFile(v)
 		if err != nil {
-			return c, fmt.Errorf("ssh: reading private-key %q: %w", v, err)
+			return c, runAs, fmt.Errorf("ssh: reading private-key %q: %w", v, err)
 		}
-		c.privateKey = key
+		c.PrivateKeyBytes = key
 	}
 	if km, ok := asMap(ssh["private-key"]); ok {
 		if data, ok := asString(km["key-data"]); ok {
-			c.privateKey = []byte(data)
+			c.PrivateKeyBytes = []byte(data)
 		}
 	}
 	if v, ok := asString(ssh["passphrase"]); ok {
-		c.passphrase = v
+		c.PrivateKeyPassphrase = v
 	}
 	// host-key-check defaults to false (Bolt's own default for the ssh
 	// transport when no known_hosts management is configured).
 	if v, ok := ssh["host-key-check"].(bool); ok {
-		c.hostKeyCheck = v
+		c.HostKeyCheck = v
 	}
 	if v, ok := asString(ssh["known-hosts"]); ok && v != "" {
-		c.knownHostsFile = v
+		c.KnownHostsFile = v
 	} else {
-		c.knownHostsFile = knownHostsFallback
+		c.KnownHostsFile = knownHostsFallback
 	}
 	if v, ok := asString(ssh["run-as"]); ok {
-		c.runAs = v
+		runAs.user = v
 	}
 	if v, ok := asString(ssh["sudo-password"]); ok {
-		c.sudoPassword = v
+		runAs.password = v
 	}
 	if v, ok := ssh["tty"].(bool); ok {
-		c.tty = v
+		c.TTY = v
 	}
 	if v, ok := asString(ssh["tmpdir"]); ok && v != "" {
-		c.tmpdir = v
+		c.TempDir = v
 	}
 	if v, ok := asInt(ssh["connect-timeout"]); ok {
-		c.connectTimeout = time.Duration(v) * time.Second
+		c.Timeout = time.Duration(v) * time.Second
 	}
-	if c.host == "" {
-		return c, fmt.Errorf("ssh: target %q has no host", t.Name)
+	if c.Host == "" {
+		return c, runAs, fmt.Errorf("ssh: target %q has no host", t.Name)
 	}
-	return c, nil
+	// The shared transport silently falls back to ~/.ssh/known_hosts
+	// when host-key-check is on but no path was given (matching plain
+	// ssh/scp); Bolt requires an explicit path instead, so callers never
+	// unknowingly verify against the invoking user's own known_hosts.
+	if c.HostKeyCheck && c.KnownHostsFile == "" {
+		return c, runAs, fmt.Errorf("ssh: target %q: host-key-check is enabled but no known-hosts file is configured", t.Name)
+	}
+	return c, runAs, nil
 }
 
 // effectiveConfig returns a target's effective config, tolerating a target that
@@ -195,109 +198,48 @@ func withScheme(uri string) string {
 	return "ssh://" + uri
 }
 
-// dial opens an ssh.Client to the configured target.
-func (s *SSHTransport) dial(c sshConfig) (*ssh.Client, error) {
-	auth, err := sshAuthMethods(c)
+// dial resolves target's config and opens a connection, wrapping it in
+// [remoteexec.Become] when run-as is configured.
+func (s *SSHTransport) dial(ctx context.Context, target *Target) (remoteexec.Connection, error) {
+	cfg, runAs, err := resolveSSHConfig(target, s.KnownHostsFile)
 	if err != nil {
 		return nil, err
 	}
-	hkc, err := s.hostKeyCallback(c)
-	if err != nil {
-		return nil, err
-	}
-	cc := &ssh.ClientConfig{
-		User:            c.user,
-		Auth:            auth,
-		HostKeyCallback: hkc,
-		Timeout:         c.connectTimeout,
-	}
-	addr := net.JoinHostPort(c.host, strconv.Itoa(c.port))
-	conn, err := s.dialer()("tcp", addr, c.connectTimeout)
-	if err != nil {
-		return nil, fmt.Errorf("ssh: dial %s: %w", addr, err)
-	}
-	sc, chans, reqs, err := ssh.NewClientConn(conn, addr, cc)
-	if err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("ssh: handshake %s: %w", addr, err)
-	}
-	return ssh.NewClient(sc, chans, reqs), nil
-}
-
-func (s *SSHTransport) dialer() func(string, string, time.Duration) (net.Conn, error) {
 	if s.Dialer != nil {
-		return s.Dialer
+		cfg.Dialer = s.Dialer
 	}
-	return func(network, addr string, timeout time.Duration) (net.Conn, error) {
-		return net.DialTimeout(network, addr, timeout)
-	}
-}
-
-func sshAuthMethods(c sshConfig) ([]ssh.AuthMethod, error) {
-	var methods []ssh.AuthMethod
-	if len(c.privateKey) > 0 {
-		var (
-			signer ssh.Signer
-			err    error
-		)
-		if c.passphrase != "" {
-			signer, err = ssh.ParsePrivateKeyWithPassphrase(c.privateKey, []byte(c.passphrase))
-		} else {
-			signer, err = ssh.ParsePrivateKey(c.privateKey)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("ssh: parsing private key: %w", err)
-		}
-		methods = append(methods, ssh.PublicKeys(signer))
-	}
-	if c.password != "" {
-		methods = append(methods, ssh.Password(c.password))
-	}
-	if len(methods) == 0 {
-		return nil, fmt.Errorf("ssh: no authentication configured (need private-key or password)")
-	}
-	return methods, nil
-}
-
-func (s *SSHTransport) hostKeyCallback(c sshConfig) (ssh.HostKeyCallback, error) {
-	if !c.hostKeyCheck {
-		return ssh.InsecureIgnoreHostKey(), nil
-	}
-	if c.knownHostsFile == "" {
-		return nil, fmt.Errorf("ssh: host-key-check enabled but no known-hosts file configured")
-	}
-	cb, err := knownhosts.New(c.knownHostsFile)
+	conn, err := remoteexec.DialSSH(ctx, cfg)
 	if err != nil {
-		return nil, fmt.Errorf("ssh: loading known-hosts %q: %w", c.knownHostsFile, err)
+		return nil, err
 	}
-	return cb, nil
+	if runAs.user == "" {
+		return conn, nil
+	}
+	return remoteexec.Become(conn, remoteexec.BecomeConfig{
+		Method: remoteexec.BecomeSudo, User: runAs.user, Password: runAs.password,
+	}), nil
 }
 
 // RunCommand runs command on the target through its login shell.
 func (s *SSHTransport) RunCommand(target *Target, command string) Result {
-	return s.withClient(target, "command", command, func(client *ssh.Client, c sshConfig) Result {
-		stdout, stderr, code, err := runAsRemote(client, c, command, "")
-		return commandResult(target, "command", command, stdout, stderr, code, err)
+	return s.withConn(target, "command", command, func(conn remoteexec.Connection) Result {
+		res, err := conn.Exec(context.Background(), command, nil)
+		return fromRemoteResult(target, "command", command, res, err)
 	})
 }
 
 // RunScript uploads the script to the remote temp dir, executes it with args,
 // and removes it afterwards.
 func (s *SSHTransport) RunScript(target *Target, scriptPath string, args []string) Result {
-	body, err := os.ReadFile(scriptPath)
-	if err != nil {
-		return Result{Target: target.Name, Action: "script", Object: scriptPath,
-			Err: fmt.Errorf("ssh: reading script %q: %w", scriptPath, err)}
-	}
-	return s.withClient(target, "script", scriptPath, func(client *ssh.Client, c sshConfig) Result {
-		remote := remoteTempPath(c, filepath.Base(scriptPath))
-		if err := uploadBytes(client, c, body, remote, true); err != nil {
+	return s.withConn(target, "script", scriptPath, func(conn remoteexec.Connection) Result {
+		remote := conn.TempPath(filepath.Base(scriptPath))
+		if err := conn.Put(context.Background(), scriptPath, remote, remoteexec.PutOptions{Executable: true, MkdirParents: true}); err != nil {
 			return Result{Target: target.Name, Action: "script", Object: scriptPath, Err: err}
 		}
-		defer removeRemote(client, c, remote)
+		defer conn.Remove(context.Background(), remote)
 		cmd := shellJoin(append([]string{remote}, args...))
-		stdout, stderr, code, err := runAsRemote(client, c, cmd, "")
-		return commandResult(target, "script", scriptPath, stdout, stderr, code, err)
+		res, err := conn.Exec(context.Background(), cmd, nil)
+		return fromRemoteResult(target, "script", scriptPath, res, err)
 	})
 }
 
@@ -309,47 +251,41 @@ func (s *SSHTransport) RunTask(target *Target, task *Task, params map[string]any
 		return Result{Target: target.Name, Action: "task", Object: task.Name,
 			Err: fmt.Errorf("task %q has no executable file", task.Name)}
 	}
-	body, err := os.ReadFile(task.File)
-	if err != nil {
-		return Result{Target: target.Name, Action: "task", Object: task.Name,
-			Err: fmt.Errorf("ssh: reading task file %q: %w", task.File, err)}
-	}
 	method := inputMethod(task)
 	stdin, env, err := taskInput(method, params)
 	if err != nil {
 		return Result{Target: target.Name, Action: "task", Object: task.Name,
 			Err: fmt.Errorf("task %q: %w", task.Name, err)}
 	}
-	return s.withClient(target, "task", task.Name, func(client *ssh.Client, c sshConfig) Result {
-		remote := remoteTempPath(c, filepath.Base(task.File))
-		if err := uploadBytes(client, c, body, remote, true); err != nil {
+	return s.withConn(target, "task", task.Name, func(conn remoteexec.Connection) Result {
+		remote := conn.TempPath(filepath.Base(task.File))
+		if err := conn.Put(context.Background(), task.File, remote, remoteexec.PutOptions{Executable: true, MkdirParents: true}); err != nil {
 			return Result{Target: target.Name, Action: "task", Object: task.Name, Err: err}
 		}
-		defer removeRemote(client, c, remote)
+		defer conn.Remove(context.Background(), remote)
 		cmd := envPrefix(env) + shellQuote(remote)
-		stdout, stderr, code, err := runAsRemote(client, c, cmd, stdin)
-		res := commandResult(target, "task", task.Name, stdout, stderr, code, err)
-		if res.Err == nil && stdout != "" {
+		res, err := conn.Exec(context.Background(), cmd, strings.NewReader(stdin))
+		result := fromRemoteResult(target, "task", task.Name, res, err)
+		if result.Err == nil && result.Value["stdout"] != "" {
 			var obj map[string]any
-			if json.Unmarshal([]byte(stdout), &obj) == nil {
+			if json.Unmarshal([]byte(result.Value["stdout"].(string)), &obj) == nil {
 				for k, v := range obj {
-					res.Value[k] = v
+					result.Value[k] = v
 				}
 			}
 		}
-		return res
+		return result
 	})
 }
 
 // Upload copies the local file at src to dst on the target.
 func (s *SSHTransport) Upload(target *Target, src, dst string) Result {
-	body, err := os.ReadFile(src)
-	if err != nil {
-		return Result{Target: target.Name, Action: "upload", Object: dst,
-			Err: fmt.Errorf("ssh: reading %q: %w", src, err)}
-	}
-	return s.withClient(target, "upload", dst, func(client *ssh.Client, c sshConfig) Result {
-		if err := uploadBytes(client, c, body, dst, false); err != nil {
+	return s.withConn(target, "upload", dst, func(conn remoteexec.Connection) Result {
+		if _, err := os.Stat(src); err != nil {
+			return Result{Target: target.Name, Action: "upload", Object: dst,
+				Err: fmt.Errorf("ssh: reading %q: %w", src, err)}
+		}
+		if err := conn.Put(context.Background(), src, dst, remoteexec.PutOptions{MkdirParents: true}); err != nil {
 			return Result{Target: target.Name, Action: "upload", Object: dst, Err: err}
 		}
 		return Result{Target: target.Name, Action: "upload", Object: dst,
@@ -357,103 +293,34 @@ func (s *SSHTransport) Upload(target *Target, src, dst string) Result {
 	})
 }
 
-// withClient resolves the target's ssh config, dials, and runs fn with the open
-// client, returning a transport-error Result if config or dial fails.
-func (s *SSHTransport) withClient(target *Target, action, object string, fn func(*ssh.Client, sshConfig) Result) Result {
-	c, err := resolveSSHConfig(target, s.KnownHostsFile)
+// withConn resolves the target, dials (with run-as applied), runs fn, and
+// closes the connection, returning a transport-error Result if resolution or
+// dial fails.
+func (s *SSHTransport) withConn(target *Target, action, object string, fn func(remoteexec.Connection) Result) Result {
+	conn, err := s.dial(context.Background(), target)
 	if err != nil {
 		return Result{Target: target.Name, Action: action, Object: object, Err: err}
 	}
-	client, err := s.dial(c)
+	defer conn.Close()
+	return fn(conn)
+}
+
+// fromRemoteResult builds a [Result] from a [remoteexec.Connection] exec
+// outcome, matching the shape [commandResult] has always produced.
+func fromRemoteResult(target *Target, action, object string, res remoteexec.Result, err error) Result {
 	if err != nil {
 		return Result{Target: target.Name, Action: action, Object: object, Err: err}
 	}
-	defer client.Close()
-	return fn(client, c)
-}
-
-// runRemote runs command on client, feeding stdin, and returns captured output
-// with the remote exit status. A non-zero exit is not an error; err is only for
-// failures to establish the session or run the command at all.
-func runRemote(client *ssh.Client, c sshConfig, command, stdin string) (string, string, int, error) {
-	sess, err := client.NewSession()
-	if err != nil {
-		return "", "", -1, fmt.Errorf("ssh: new session: %w", err)
+	return Result{
+		Target: target.Name,
+		Action: action,
+		Object: object,
+		Value: map[string]any{
+			"stdout":    res.Stdout,
+			"stderr":    res.Stderr,
+			"exit_code": res.RC,
+		},
 	}
-	defer sess.Close()
-	if c.tty {
-		// Best-effort PTY; a server that refuses it must not fail the command.
-		_ = sess.RequestPty("xterm", 24, 80, ssh.TerminalModes{})
-	}
-	var out, errBuf strings.Builder
-	sess.Stdout = &out
-	sess.Stderr = &errBuf
-	sess.Stdin = strings.NewReader(stdin)
-	err = sess.Run(command)
-	if err == nil {
-		return out.String(), errBuf.String(), 0, nil
-	}
-	if ee, ok := err.(*ssh.ExitError); ok {
-		return out.String(), errBuf.String(), ee.ExitStatus(), nil
-	}
-	return out.String(), errBuf.String(), -1, fmt.Errorf("ssh: running command: %w", err)
-}
-
-// execCheck runs cmd (feeding stdin) and turns both a transport error and a
-// non-zero exit into a single descriptive error.
-func execCheck(client *ssh.Client, c sshConfig, cmd, stdin, desc string) error {
-	_, stderr, code, err := runRemote(client, c, cmd, stdin)
-	if err != nil {
-		return fmt.Errorf("ssh: %s: %w", desc, err)
-	}
-	if code != 0 {
-		return fmt.Errorf("ssh: %s: exit %d: %s", desc, code, stderr)
-	}
-	return nil
-}
-
-// uploadBytes writes body to the remote path dst by streaming it to a
-// `cat > dst` sink over an exec session, optionally chmod +x afterwards.
-func uploadBytes(client *ssh.Client, c sshConfig, body []byte, dst string, executable bool) error {
-	if base := path.Dir(dst); base != "." && base != "/" {
-		if err := execCheck(client, c, "mkdir -p "+shellQuote(base), "", "preparing "+base); err != nil {
-			return err
-		}
-	}
-	if err := execCheck(client, c, "cat > "+shellQuote(dst), string(body), "uploading to "+dst); err != nil {
-		return err
-	}
-	if executable {
-		if err := execCheck(client, c, "chmod +x "+shellQuote(dst), "", "chmod "+dst); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func removeRemote(client *ssh.Client, c sshConfig, dst string) {
-	_, _, _, _ = runRemote(client, c, "rm -f "+shellQuote(dst), "")
-}
-
-// remoteTempPath builds a unique-enough remote path under the configured tmpdir.
-func remoteTempPath(c sshConfig, base string) string {
-	return path.Join(c.tmpdir, fmt.Sprintf("bolt_%d_%s", time.Now().UnixNano(), base))
-}
-
-// runAsRemote runs command, applying run-as (sudo) escalation when configured.
-// When a sudo-password is set the password is prepended to stdin so `sudo -S`
-// can read it before the command's own input (Bolt's behaviour).
-func runAsRemote(client *ssh.Client, c sshConfig, command, stdin string) (string, string, int, error) {
-	if c.runAs == "" {
-		return runRemote(client, c, command, stdin)
-	}
-	flag := "-H"
-	if c.sudoPassword != "" {
-		flag = "-S -H"
-		stdin = c.sudoPassword + "\n" + stdin
-	}
-	wrapped := fmt.Sprintf("sudo %s -u %s sh -c %s", flag, shellQuote(c.runAs), shellQuote(command))
-	return runRemote(client, c, wrapped, stdin)
 }
 
 // taskInput builds the stdin payload and environment for a task run given its
