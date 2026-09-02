@@ -193,7 +193,7 @@ func TestSSHRunScript(t *testing.T) {
 func TestSSHRunScriptReadError(t *testing.T) {
 	srv := pwServer(t)
 	r := NewSSHTransport().RunScript(sshTarget(srv, nil), filepath.Join(t.TempDir(), "absent.sh"), nil)
-	if r.Err == nil || !strings.Contains(r.Err.Error(), "no such file") {
+	if r.Err == nil || !errors.Is(r.Err, os.ErrNotExist) {
 		t.Fatalf("want read error, got %#v", r)
 	}
 }
@@ -290,7 +290,7 @@ func TestSSHRunTaskFileReadError(t *testing.T) {
 	srv := pwServer(t)
 	task := &Task{Name: "t", File: filepath.Join(t.TempDir(), "absent")}
 	r := NewSSHTransport().RunTask(sshTarget(srv, nil), task, nil)
-	if r.Err == nil || !strings.Contains(r.Err.Error(), "no such file") {
+	if r.Err == nil || !errors.Is(r.Err, os.ErrNotExist) {
 		t.Fatalf("want read error, got %#v", r)
 	}
 }
