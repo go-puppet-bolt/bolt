@@ -4,7 +4,7 @@ go 1.26.4
 
 require (
 	github.com/go-puppet/puppet v0.0.0-20260831064218-ab6e40079f54
-	github.com/go-remoteexec/transport v0.1.3
+	github.com/go-remoteexec/transport v0.1.7
 	github.com/go-ruby-yaml/yaml v0.0.0-20260804155707-9c1d94ea2290
 	golang.org/x/crypto v0.56.0
 )
