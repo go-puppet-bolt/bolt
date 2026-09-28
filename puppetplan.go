@@ -102,7 +102,7 @@ func (a planExecAdapter) ApplyCatalog(targets []string, cat *catalog.Catalog) (e
 	return resultSetValue(rs), runFailure("apply", "catalog", rs)
 }
 
-// targetsFromSpecs turns target-spec strings into [Target]s via the inventory
+// targetsFromSpecs turns target-spec strings into [Target] values via the inventory
 // (when configured) or ad-hoc targets otherwise.
 func (e *Executor) targetsFromSpecs(specs []string) []*Target {
 	out := make([]*Target, len(specs))

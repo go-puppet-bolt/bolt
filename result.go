@@ -47,7 +47,7 @@ func (r Result) exitCode() (int, bool) {
 	return code, ok
 }
 
-// ResultSet aggregates the per-target [Result]s of running one action across
+// ResultSet aggregates the per-target [Result] values of running one action across
 // several targets.
 type ResultSet struct {
 	results []Result

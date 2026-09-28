@@ -10,7 +10,7 @@ import (
 )
 
 // Executor runs actions on targets through a [Transport] and executes YAML
-// plans. Inventory (optional) resolves plan target-specs into [Target]s;
+// plans. Inventory (optional) resolves plan target-specs into [Target] values;
 // TaskLoader and PlanLoader resolve the task and sub-plan steps of a plan.
 type Executor struct {
 	Transport Transport
@@ -243,7 +243,7 @@ func (e *Executor) runPlanStep(step Step, scope map[string]any) (any, []string, 
 	return res.Value, res.Messages, nil
 }
 
-// resolveTargets turns a step's targets field into concrete [Target]s.
+// resolveTargets turns a step's targets field into concrete [Target] values.
 func (e *Executor) resolveTargets(raw any, scope map[string]any) ([]*Target, error) {
 	specs, err := resolveTargetSpecs(raw, scope)
 	if err != nil {
