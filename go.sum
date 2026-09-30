@@ -12,10 +12,10 @@ github.com/go-hocon/hocon v0.0.0-20260831114632-08e716b40e6d h1:Lnoi3t2g9QiII2NG
 github.com/go-hocon/hocon v0.0.0-20260831114632-08e716b40e6d/go.mod h1:2231cAwqF+bztx0saIVdVSKtnvkx1VVxncHSNSEPu/4=
 github.com/go-pcore/pcore v0.0.0-20260831114716-f9c3e7f59eaa h1:JNWdYslHUIBvlGE7aKJWtJ+Z6U2riJn+v8NquDVMy+U=
 github.com/go-pcore/pcore v0.0.0-20260831114716-f9c3e7f59eaa/go.mod h1:MgngaL59lB3D41kl/VWYfkem1sJDBbh3JXG/y/Lrnjo=
-github.com/go-puppet/puppet v0.0.0-20260918012035-fc6b0424cdbd h1:0tExRGSb1rQsGZnJxhL//KAGsbe0kmH5EBHoHYYjzjc=
-github.com/go-puppet/puppet v0.0.0-20260918012035-fc6b0424cdbd/go.mod h1:wdKZWNCMcBQA7Dgp7xu2QFDPF7tQ2fTlOG4cjGEMgxU=
-github.com/go-remoteexec/transport v0.1.7 h1:Xp9K8C+26JZ2pb7slPyR8xTLTN8+tS550TNKcwhA+eQ=
-github.com/go-remoteexec/transport v0.1.7/go.mod h1:xE/90EDbXYhbQqYP+IOGMcebEMtZbqXMvg1DDOaJY1I=
+github.com/go-puppet/puppet v0.0.0-20260928185008-0284420aabf9 h1:uz3Lm/5kYwG3AFaeJSXslXTS9j5Yfv5arwJlKImlmdk=
+github.com/go-puppet/puppet v0.0.0-20260928185008-0284420aabf9/go.mod h1:wdKZWNCMcBQA7Dgp7xu2QFDPF7tQ2fTlOG4cjGEMgxU=
+github.com/go-remoteexec/transport v0.1.9 h1:ywVtd8nlSwta5NJk4YOQWZymwohYk8NQnxPavM97S+M=
+github.com/go-remoteexec/transport v0.1.9/go.mod h1:5gDnta+scYyI1Fxq7ozhpdxZXffW/9uyRXk6bxZhK8w=
 github.com/go-ruby-yaml/yaml v0.0.0-20260916104302-910ced2db1c7 h1:0p98W8xQ9WMGipkUVYZcgqvfVED1pEBk4IMjmjAej2s=
 github.com/go-ruby-yaml/yaml v0.0.0-20260916104302-910ced2db1c7/go.mod h1:HtbQgnZpSTJBAhPg1jOKgHycZl3tXgf9ZdOu4dnHWjQ=
 golang.org/x/crypto v0.57.0 h1:3ZVCjf8Ggz7zneR/EHRVx68Ctf+2pmIMP2UFhh9cC6M=
