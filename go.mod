@@ -1,6 +1,6 @@
 module github.com/go-puppet-bolt/bolt
 
-go 1.26.4
+go 1.27.1
 
 require (
 	github.com/go-puppet/puppet v0.0.0-20260928185008-0284420aabf9
