@@ -16,6 +16,8 @@ github.com/go-puppet/puppet v0.0.0-20260928185008-0284420aabf9 h1:uz3Lm/5kYwG3AF
 github.com/go-puppet/puppet v0.0.0-20260928185008-0284420aabf9/go.mod h1:wdKZWNCMcBQA7Dgp7xu2QFDPF7tQ2fTlOG4cjGEMgxU=
 github.com/go-remoteexec/transport v0.1.9 h1:ywVtd8nlSwta5NJk4YOQWZymwohYk8NQnxPavM97S+M=
 github.com/go-remoteexec/transport v0.1.9/go.mod h1:5gDnta+scYyI1Fxq7ozhpdxZXffW/9uyRXk6bxZhK8w=
+github.com/go-remoteexec/transport v0.2.0 h1:PWQWaW52C2iqGOJp7m912ggDhaKYebIUe7t8z1BqHYM=
+github.com/go-remoteexec/transport v0.2.0/go.mod h1:5gDnta+scYyI1Fxq7ozhpdxZXffW/9uyRXk6bxZhK8w=
 github.com/go-ruby-yaml/yaml v0.0.0-20260916104302-910ced2db1c7 h1:0p98W8xQ9WMGipkUVYZcgqvfVED1pEBk4IMjmjAej2s=
 github.com/go-ruby-yaml/yaml v0.0.0-20260916104302-910ced2db1c7/go.mod h1:HtbQgnZpSTJBAhPg1jOKgHycZl3tXgf9ZdOu4dnHWjQ=
 golang.org/x/crypto v0.57.0 h1:3ZVCjf8Ggz7zneR/EHRVx68Ctf+2pmIMP2UFhh9cC6M=

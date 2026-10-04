@@ -48,9 +48,13 @@ func NewWinRMTransport() *WinRMTransport { return &WinRMTransport{} }
 // shell at creation time (Bolt's "environment"/"both" task input methods).
 func resolveWinRMConfig(t *Target, env map[string]string) (remoteexec.WinRMConfig, error) {
 	c := remoteexec.WinRMConfig{
-		Transport:      "negotiate",
-		SSL:            true,
-		SSLVerify:      true,
+		Transport: "negotiate",
+		SSL:       true,
+		// Certificate verification is transport's default now that the
+		// field is named InsecureSkipVerify, so there is nothing to set
+		// here. Bolt's own `ssl-verify` default is true as well, so the
+		// two agree and the secure state is the one neither side has to
+		// remember to ask for.
 		TempDir:        `C:\Windows\Temp`,
 		Path:           "/wsman",
 		ConnectTimeout: 60 * time.Second,
@@ -100,7 +104,11 @@ func applyWinRMConfig(c *remoteexec.WinRMConfig, wm map[string]any) {
 		c.SSL = v
 	}
 	if v, ok := asBool(wm["ssl-verify"]); ok {
-		c.SSLVerify = v
+		// Bolt's inventory key says whether to verify; transport's field
+		// says whether to skip. The negation is written out rather than
+		// renaming the key, because `ssl-verify` is what a Bolt
+		// inventory actually contains.
+		c.InsecureSkipVerify = !v
 	}
 	if v, ok := asString(wm["cacert"]); ok && v != "" {
 		c.CACert = v

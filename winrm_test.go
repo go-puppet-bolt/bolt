@@ -406,10 +406,30 @@ func TestResolveWinRMConfig(t *testing.T) {
 				"tmpdir": `D:\tmp`, "path": "wsman2",
 			}}}, nil)
 		if c.Host != "h2" || c.Port != 1234 || c.User != "adm" || c.Password != "pw" ||
-			c.SSLVerify || c.CACert != "/ca" || c.ClientCert != "/c" ||
+			!c.InsecureSkipVerify || c.CACert != "/ca" || c.ClientCert != "/c" ||
 			c.ClientKey != "/k" || c.ConnectTimeout != 5*time.Second || c.TempDir != `D:\tmp` ||
 			c.Path != "wsman2" {
 			t.Fatalf("c = %#v", c)
+		}
+	})
+	// transport's field is InsecureSkipVerify now, so its zero value
+	// verifies. An inventory that never mentions ssl-verify therefore
+	// gets verification -- which is also real Bolt's own default for the
+	// key. Before the rename this resolved to "skip", because the old
+	// SSLVerify field was commented "default true" while a bool's zero
+	// value is false.
+	t.Run("ssl-verify unset verifies", func(t *testing.T) {
+		c, _ := resolveWinRMConfig(&Target{Name: "w", URI: "h", Config: map[string]any{
+			"winrm": map[string]any{"ssl": true}}}, nil)
+		if c.InsecureSkipVerify {
+			t.Error("an inventory that says nothing about ssl-verify skips verification")
+		}
+	})
+	t.Run("ssl-verify true verifies", func(t *testing.T) {
+		c, _ := resolveWinRMConfig(&Target{Name: "w", URI: "h", Config: map[string]any{
+			"winrm": map[string]any{"ssl": true, "ssl-verify": true}}}, nil)
+		if c.InsecureSkipVerify {
+			t.Error("ssl-verify: true did not verify")
 		}
 	})
 	t.Run("transport ssl forces ssl", func(t *testing.T) {
