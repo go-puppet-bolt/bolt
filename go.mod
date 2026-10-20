@@ -4,7 +4,7 @@ go 1.27.1
 
 require (
 	github.com/go-puppet/puppet v0.0.0-20261012023021-34eeabf60268
-	github.com/go-remoteexec/transport v0.5.0
+	github.com/go-remoteexec/transport v0.8.0
 	github.com/go-ruby-yaml/yaml v0.1.0
 	golang.org/x/crypto v0.58.0
 )
