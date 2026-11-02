@@ -12,8 +12,8 @@ github.com/go-hocon/hocon v0.0.0-20261025201053-7741c9a46c6d h1:4OO9SaRSwy8NlFwV
 github.com/go-hocon/hocon v0.0.0-20261025201053-7741c9a46c6d/go.mod h1:TME1hRYCnUlJcGul5JqKynEmVINMVFLM7+Xir+sfnm4=
 github.com/go-pcore/pcore v0.0.0-20261025230242-d8a750e587ab h1:hJKWe3b9l8PUKk0cTjkNGs9B/jGavS/1wUHPUkAcg6o=
 github.com/go-pcore/pcore v0.0.0-20261025230242-d8a750e587ab/go.mod h1:r+Tqoy6i8HiDyaoL+gx24t+jCqT4oz2M2PRZj/bs5qE=
-github.com/go-puppet/puppet v0.0.0-20261027021037-3c8b59bde971 h1:R/NrWHHwzRKwNrhv0ZMtt5sRxs3nnWEjIduzButQegw=
-github.com/go-puppet/puppet v0.0.0-20261027021037-3c8b59bde971/go.mod h1:dDoGTe4shoFGCBoW1fWTn8935kvFktxdDYafTWF5tpE=
+github.com/go-puppet/puppet v0.0.0-20261101004502-9ad5aec56bff h1:41EdpnUs5jc300DoPSemSh/UIsUT/ggKO6U530+vzdI=
+github.com/go-puppet/puppet v0.0.0-20261101004502-9ad5aec56bff/go.mod h1:dDoGTe4shoFGCBoW1fWTn8935kvFktxdDYafTWF5tpE=
 github.com/go-remoteexec/transport v0.8.1 h1:Y8Ua5xuaxmkioXuaZAeRwx6cCpWVcjI6n0R3NjiAM9E=
 github.com/go-remoteexec/transport v0.8.1/go.mod h1:wdBCn8F/HlDKOwgHVrIhitzWDtxbU07lzryAIQnjs70=
 github.com/go-ruby-yaml/yaml v0.1.0 h1:P+KqEHwp4o1boSvOMmpK6c+PM73bVghwqw2peGfurKg=
