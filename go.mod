@@ -3,7 +3,7 @@ module github.com/go-puppet-bolt/bolt
 go 1.27.1
 
 require (
-	github.com/go-puppet/puppet v0.0.0-20261103035912-db5fe4bde0b0
+	github.com/go-puppet/puppet v0.0.0-20261114032441-f06260d91421
 	github.com/go-remoteexec/transport v0.8.1
 	github.com/go-ruby-yaml/yaml v0.1.0
 	golang.org/x/crypto v0.59.0
