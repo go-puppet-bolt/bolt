@@ -3,7 +3,7 @@ module github.com/go-puppet-bolt/bolt
 go 1.27.1
 
 require (
-	github.com/go-puppet/puppet v0.0.0-20261114032441-f06260d91421
+	github.com/go-puppet/puppet v0.0.0-20261117050859-ec57410dcbe2
 	github.com/go-remoteexec/transport v0.8.1
 	github.com/go-ruby-yaml/yaml v0.1.0
 	golang.org/x/crypto v0.59.0
@@ -12,7 +12,7 @@ require (
 require (
 	github.com/Azure/go-ntlmssp v0.1.1 // indirect
 	github.com/go-augeas/augeas v0.0.0-20261101075521-44aa977de4ad // indirect
-	github.com/go-encryptions/unixcrypt v0.2.0 // indirect
+	github.com/go-encryptions/unixcrypt v0.2.1 // indirect
 	github.com/go-facter/facter v0.0.0-20261101004259-4dafb1d84b43 // indirect
 	github.com/go-hiera/hiera v0.0.0-20261101003848-5d1613be4b0c // indirect
 	github.com/go-hocon/hocon v0.0.0-20261101004704-1d2c08b7d9e0 // indirect
